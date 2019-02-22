@@ -35,17 +35,54 @@ void mtsSocketStreamer::Init(void)
     if (required) {
         required->AddFunction("GetPositionCartesian", GetPositionCartesian);
     }
-
-    SetDestination("127.0.0.1:8051");
 }
 
 mtsSocketStreamer::~mtsSocketStreamer()
 {
 }
 
-void mtsSocketStreamer::Configure(const std::string &ipPort)
+void mtsSocketStreamer::Configure(const std::string & filename)
 {
-    SetDestination(ipPort);
+    if (!cmnPath::Exists(filename)) {
+        CMN_LOG_CLASS_INIT_ERROR << "Configure: " << filename
+                                 << " not found!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // open json file
+    std::ifstream jsonStream;
+    jsonStream.open(filename.c_str());
+    Json::Value jsonConfig;
+    Json::Reader jsonReader;
+    if (!jsonReader.parse(jsonStream, jsonConfig)) {
+        CMN_LOG_CLASS_INIT_ERROR << "Configure: failed to parse configuration" << std::endl
+                                 << "File: " << filename << std::endl << "Error(s):" << std::endl
+                                 << jsonReader.getFormattedErrorMessages();
+        exit(EXIT_FAILURE);
+    }
+
+    // look for IP and port
+    bool ipPortFound = true;
+    std::string ipPort;
+    Json::Value jsonValue = jsonConfig["ip"];
+    if (jsonValue.empty()) {
+        ipPortFound = false;
+    } else {
+        ipPort = jsonValue.asString();
+        ipPort.append(":");
+        // now look for port
+        jsonValue = jsonConfig["port"];
+        if (jsonValue.empty()) {
+            ipPortFound = false;
+        } else {
+            ipPort.append(jsonValue.asString());
+        }
+    }
+    if (ipPortFound) {
+        SetDestination(ipPort);
+    } else {
+        std::cerr << CMN_LOG_DETAILS << " --- send error if port not already configured" << std::endl;
+    }
 }
 
 void mtsSocketStreamer::Startup(void)
