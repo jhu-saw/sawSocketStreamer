@@ -71,15 +71,8 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     bool SocketConfigured;
 
     mtsFunctionRead GetPositionCartesian;
-    mtsFunctionRead GetGripperPosition;
-    bool Clutch;
-    bool Coag;
 
     void SetDestination(const std::string &ipPort);
-    void EventHandlerManipClutch(const prmEventButton &button);
-    void EventHandlerCoag(const prmEventButton &button);
-
-
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsSocketStreamer)

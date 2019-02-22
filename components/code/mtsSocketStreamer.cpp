@@ -20,15 +20,12 @@ http://www.cisst.org/cisst/license.txt.
 #include <cisstMultiTask/mtsInterfaceProvided.h>
 #include <cisstMultiTask/mtsInterfaceRequired.h>
 #include <cisstParameterTypes/prmPositionCartesianGet.h>
-#include <cisstParameterTypes/prmEventButton.h>
 
 CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsSocketStreamer, mtsTaskPeriodic, mtsTaskPeriodicConstructorArg);
 
 void mtsSocketStreamer::Init(void)
 {
     SocketConfigured = false;
-    Clutch = false;
-    Coag = false;
 
     mtsInterfaceProvided * provided = AddInterfaceProvided("Configuration");
     if (provided) {
@@ -37,16 +34,9 @@ void mtsSocketStreamer::Init(void)
     mtsInterfaceRequired * required = AddInterfaceRequired("Robot");
     if (required) {
         required->AddFunction("GetPositionCartesian", GetPositionCartesian);
-        required->AddFunction("GetGripperPosition", GetGripperPosition);
     }
-    required = AddInterfaceRequired("Clutch");
-    if (required) {
-        required->AddEventHandlerWrite(&mtsSocketStreamer::EventHandlerManipClutch, this, "Button");
-    }
-    required = AddInterfaceRequired("Coag");
-    if (required) {
-        required->AddEventHandlerWrite(&mtsSocketStreamer::EventHandlerCoag, this, "Button");
-    }
+
+    SetDestination("127.0.0.1:8051");
 }
 
 mtsSocketStreamer::~mtsSocketStreamer()
@@ -71,26 +61,32 @@ void mtsSocketStreamer::Run(void)
         // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
         // For the buttons: 0=None, 1=Clutch, 2=Coag, 3=Both
         double packet[9];
-        if (Clutch) {
-            packet[0] = 1.0;
-        } else {
-            packet[0] = 0.0;
-        }
-        if (Coag)
-            packet[0] += 2.0;
-        GetGripperPosition(packet[1]);
+
         prmPositionCartesianGet posCart;
         GetPositionCartesian(posCart);
+
+        
+        /*
         vct3 pos = posCart.Position().Translation();
         packet[2] = pos.X();
         packet[3] = pos.Y();
         packet[4] = pos.Z();
-        vctQuatRot3 qrot(posCart.Position().Rotation());
+
+        std::cerr << posCart << std::endl;
+
+        vctQuatRot3 qrot(posCart.Position().Rotation(), VCT_NORMALIZE);
         packet[5] = qrot.W();
         packet[6] = qrot.X();
         packet[7] = qrot.Y();
         packet[8] = qrot.Z();
+
         Socket.Send((char *)packet, sizeof(packet));
+        */
+        Json::Value jsonToSend;
+        cmnDataJSON<prmPositionCartesianGet>::SerializeText(posCart, jsonToSend);
+        Json::FastWriter fastWriter;
+        std::string output = fastWriter.write(jsonToSend);
+        Socket.Send(output.c_str(), output.size());
     }
 }
 
@@ -114,14 +110,4 @@ void mtsSocketStreamer::SetDestination(const std::string &ipPort)
             SocketConfigured = true;
         }
     }
-}
-
-void mtsSocketStreamer::EventHandlerManipClutch(const prmEventButton &button)
-{
-    Clutch = (button.Type() == prmEventButton::PRESSED);
-}
-
-void mtsSocketStreamer::EventHandlerCoag(const prmEventButton &button)
-{
-    Coag = (button.Type() == prmEventButton::PRESSED);
 }
