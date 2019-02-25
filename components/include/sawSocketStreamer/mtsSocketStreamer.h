@@ -51,7 +51,7 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
         {
             Init();
         }
-    
+
     /*! Destructor */
     virtual ~mtsSocketStreamer();
 
@@ -66,13 +66,23 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
  protected:
 
     void Init(void);
-    
+    void SetDestination(const std::string &ipPort);
+
+    mtsInterfaceRequired * InterfaceRequired;
+    typedef struct {
+        mtsFunctionRead Function;
+        mtsGenericObject * Data;
+    } DataStruct;
+    typedef std::map<std::string, DataStruct> DataMapType;
+    DataMapType DataMap;
+
     osaSocket Socket;
     bool SocketConfigured;
 
+    Json::FastWriter FastWriter;
+
     mtsFunctionRead GetPositionCartesian;
 
-    void SetDestination(const std::string &ipPort);
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsSocketStreamer)

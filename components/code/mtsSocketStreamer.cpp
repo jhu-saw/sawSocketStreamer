@@ -31,10 +31,7 @@ void mtsSocketStreamer::Init(void)
     if (provided) {
         provided->AddCommandWrite(&mtsSocketStreamer::SetDestination, this, "SetDestination");
     }
-    mtsInterfaceRequired * required = AddInterfaceRequired("Robot");
-    if (required) {
-        required->AddFunction("GetPositionCartesian", GetPositionCartesian);
-    }
+    InterfaceRequired = AddInterfaceRequired("Required");
 }
 
 mtsSocketStreamer::~mtsSocketStreamer()
@@ -80,13 +77,48 @@ void mtsSocketStreamer::Configure(const std::string & filename)
     }
     if (ipPortFound) {
         SetDestination(ipPort);
-    } else {
-        std::cerr << CMN_LOG_DETAILS << " --- send error if port not already configured" << std::endl;
+    }
+
+    // look for data
+    Json::Value jsonDataArray = jsonConfig["data"];
+    for (unsigned int index = 0; index < jsonDataArray.size(); ++index) {
+        Json::Value jsonData = jsonDataArray[index];
+        // look for name and type
+        std::string name, type;
+        name = jsonData["name"].asString();
+        type = jsonData["type"].asString();
+        if (name.empty() || type.empty()) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: all data fields must contain a \"name\" and \"type\" in file "
+                                     << filename << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        // make sure we can create a placeholder for the data type
+        cmnGenericObject * baseObject;
+        baseObject = cmnClassRegister::Create(type);
+        if (!baseObject) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: unable to create an object of type \""
+                                     << type << "\"" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        mtsGenericObject * object = dynamic_cast<mtsGenericObject *>(baseObject);
+        if (!object) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: object of type \""
+                                     << type << "\" is not derived from mtsGenericObject" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        // now, create a placeholder for the data
+        DataStruct & data = DataMap[name];
+        InterfaceRequired->AddFunction(name, data.Function);
+        data.Data = object;
     }
 }
 
 void mtsSocketStreamer::Startup(void)
 {
+    if (!SocketConfigured) {
+        CMN_LOG_CLASS_INIT_ERROR << "Startup: port not configured for " << this->GetName() << std::endl;
+    }
 }
 
 void mtsSocketStreamer::Run(void)
@@ -95,34 +127,22 @@ void mtsSocketStreamer::Run(void)
     ProcessQueuedEvents();
 
     if (SocketConfigured) {
-        // Packet format (9 doubles): buttons (clutch, coag), gripper, x, y, z, q0, qx, qy, qz
-        // For the buttons: 0=None, 1=Clutch, 2=Coag, 3=Both
-        double packet[9];
-
-        prmPositionCartesianGet posCart;
-        GetPositionCartesian(posCart);
-
-        
-        /*
-        vct3 pos = posCart.Position().Translation();
-        packet[2] = pos.X();
-        packet[3] = pos.Y();
-        packet[4] = pos.Z();
-
-        std::cerr << posCart << std::endl;
-
-        vctQuatRot3 qrot(posCart.Position().Rotation(), VCT_NORMALIZE);
-        packet[5] = qrot.W();
-        packet[6] = qrot.X();
-        packet[7] = qrot.Y();
-        packet[8] = qrot.Z();
-
-        Socket.Send((char *)packet, sizeof(packet));
-        */
         Json::Value jsonToSend;
-        cmnDataJSON<prmPositionCartesianGet>::SerializeText(posCart, jsonToSend);
-        Json::FastWriter fastWriter;
-        std::string output = fastWriter.write(jsonToSend);
+        DataMapType::iterator iter;
+        const DataMapType::iterator end = DataMap.end();
+        for (iter = DataMap.begin();
+             iter != end;
+             ++iter) {
+            mtsExecutionResult result;
+            result = iter->second.Function(*(iter->second.Data));
+            if (result.IsOK()) {
+                iter->second.Data->SerializeTextJSON(jsonToSend[iter->first]);
+            } else {
+                CMN_LOG_CLASS_RUN_ERROR << "Run: component " << this->GetName() << " run into error "
+                                        << result << " while calling " << iter->first << std::endl;
+            }
+        }
+        std::string output = FastWriter.write(jsonToSend);
         Socket.Send(output.c_str(), output.size());
     }
 }
