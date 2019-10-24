@@ -17,6 +17,8 @@ http://www.cisst.org/cisst/license.txt.
 */
 
 #include <sawSocketStreamer/mtsSocketStreamer.h>
+#include <cisstCommon/cmnUnits.h>
+#include <cisstCommon/cmnPath.h>
 #include <cisstMultiTask/mtsInterfaceProvided.h>
 #include <cisstMultiTask/mtsInterfaceRequired.h>
 #include <cisstParameterTypes/prmPositionCartesianGet.h>
