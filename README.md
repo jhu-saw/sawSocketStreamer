@@ -134,3 +134,11 @@ Each component created need a configuration file that specifies with read comman
     ]
 }
 ```
+
+## Testing the streamer
+
+To test the streamer, you can use the `nc` tool on Linux.   The main options are `l` to listen and `u` for UDP protocol.  Then you need to add the IP address and port.   With the example above, try:
+```sh
+nc -lu 10.194.86.119 48054
+```
+At that point you should see a continous stream for text in JSON format.
