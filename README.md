@@ -128,7 +128,7 @@ Each component created need a configuration file that specifies with read comman
     "port": "48054",
     "data": [
         {
-            "name": "GetStateJoint",
+            "name": "measured_js",
             "type": "prmStateJoint"
         }
     ]
