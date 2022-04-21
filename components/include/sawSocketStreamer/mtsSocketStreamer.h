@@ -40,14 +40,14 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     */
     inline mtsSocketStreamer(const std::string & name, double period):
         mtsTaskPeriodic(name, period),
-        Socket(osaSocket::UDP)
+        mSocket(osaSocket::UDP)
         {
             Init();
         }
 
     inline mtsSocketStreamer(const mtsTaskPeriodicConstructorArg & arg):
         mtsTaskPeriodic(arg),
-        Socket(osaSocket::UDP)
+        mSocket(osaSocket::UDP)
         {
             Init();
         }
@@ -68,18 +68,18 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     void Init(void);
     void SetDestination(const std::string &ipPort);
 
-    mtsInterfaceRequired * InterfaceRequired;
+    mtsInterfaceRequired * mInterfaceRequired;
     typedef struct {
         mtsFunctionRead Function;
         mtsGenericObject * Data;
-    } DataStruct;
-    typedef std::map<std::string, DataStruct> DataMapType;
-    DataMapType DataMap;
+    } ReadDataStruct;
+    typedef std::map<std::string, ReadDataStruct> DataMapType;
+    DataMapType mReadFunctions;
 
-    osaSocket Socket;
-    bool SocketConfigured;
+    osaSocket mSocket;
+    bool mSocketConfigured;
 
-    Json::FastWriter FastWriter;
+    Json::FastWriter mJSONWriter;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsSocketStreamer)

@@ -5,7 +5,7 @@
   Author(s):  Peter Kazanzides, Anton Deguet
   Created on: 2013-12-02
 
-  (C) Copyright 2013-2019 Johns Hopkins University (JHU), All Rights Reserved.
+  (C) Copyright 2013-2022 Johns Hopkins University (JHU), All Rights Reserved.
 
 --- begin cisst license - do not edit ---
 
@@ -27,13 +27,13 @@ CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsSocketStreamer, mtsTaskPeriodic, mtsTas
 
 void mtsSocketStreamer::Init(void)
 {
-    SocketConfigured = false;
+    mSocketConfigured = false;
 
     mtsInterfaceProvided * provided = AddInterfaceProvided("Configuration");
     if (provided) {
         provided->AddCommandWrite(&mtsSocketStreamer::SetDestination, this, "SetDestination");
     }
-    InterfaceRequired = AddInterfaceRequired("Required");
+    mInterfaceRequired = AddInterfaceRequired("Required");
 }
 
 mtsSocketStreamer::~mtsSocketStreamer()
@@ -108,17 +108,17 @@ void mtsSocketStreamer::Configure(const std::string & filename)
                                      << type << "\" is not derived from mtsGenericObject" << std::endl;
             exit(EXIT_FAILURE);
         }
-        
+
         // now, create a placeholder for the data
-        DataStruct & data = DataMap[name];
-        InterfaceRequired->AddFunction(name, data.Function);
-        data.Data = object;
+        auto & readFunction = mReadFunctions[name];
+        mInterfaceRequired->AddFunction(name, readFunction.Function);
+        readFunction.Data = object;
     }
 }
 
 void mtsSocketStreamer::Startup(void)
 {
-    if (!SocketConfigured) {
+    if (!mSocketConfigured) {
         CMN_LOG_CLASS_INIT_ERROR << "Startup: port not configured for " << this->GetName() << std::endl;
     }
 }
@@ -128,30 +128,26 @@ void mtsSocketStreamer::Run(void)
     ProcessQueuedCommands();
     ProcessQueuedEvents();
 
-    if (SocketConfigured) {
+    if (mSocketConfigured) {
         Json::Value jsonToSend;
-        DataMapType::iterator iter;
-        const DataMapType::iterator end = DataMap.end();
-        for (iter = DataMap.begin();
-             iter != end;
-             ++iter) {
+        for (auto & readFunction: mReadFunctions) {
             mtsExecutionResult result;
-            result = iter->second.Function(*(iter->second.Data));
+            result = readFunction.second.Function(*(readFunction.second.Data));
             if (result.IsOK()) {
-                iter->second.Data->SerializeTextJSON(jsonToSend[iter->first]);
+                readFunction.second.Data->SerializeTextJSON(jsonToSend[readFunction.first]);
             } else {
                 CMN_LOG_CLASS_RUN_ERROR << "Run: component " << this->GetName() << " run into error "
-                                        << result << " while calling " << iter->first << std::endl;
+                                        << result << " while calling " << readFunction.first << std::endl;
             }
         }
-        std::string output = FastWriter.write(jsonToSend);
-        Socket.Send(output.c_str(), output.size());
+        std::string output = mJSONWriter.write(jsonToSend);
+        mSocket.Send(output.c_str(), output.size());
     }
 }
 
 void mtsSocketStreamer::Cleanup(void)
 {
-    Socket.Close();
+    mSocket.Close();
 }
 
 void mtsSocketStreamer::SetDestination(const std::string &ipPort)
@@ -165,8 +161,8 @@ void mtsSocketStreamer::SetDestination(const std::string &ipPort)
             CMN_LOG_CLASS_RUN_ERROR << "SetDestination: invalid port " << ipPort << std::endl;
 
         } else {
-            Socket.SetDestination(ipPort.substr(0, colon), port);
-            SocketConfigured = true;
+            mSocket.SetDestination(ipPort.substr(0, colon), port);
+            mSocketConfigured = true;
         }
     }
 }
