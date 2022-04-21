@@ -25,9 +25,12 @@ Based on user requests, we could add:
 ## Adding the component
 
 One can create and add the `mtsSocketStreamer` component manually in
-your `main` C function but we strongly recommend using the
+your `main` C/C++ code but we strongly recommend using the
 `cisstMultiTask` manager ability to load a configuration file to add
-and connect components.  The dVRK main programs provide this options.  See https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/master/applications/mainQtConsoleJSON.cpp.
+and connect components.  Most cisst/SAW (including dVRK) programs have
+already been updated with the code below so you likely don't need to
+add this and can skip to the next section.  See
+https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/master/applications/mainQtConsoleJSON.cpp.
 
 There is first a command line option to specify one or more configuration files for the component manager:
 ```cpp
@@ -46,6 +49,8 @@ Then one has to use the configuration files to configure the component manager:
         return -1;
     }
 ```
+
+## Configuration file for the component manager
 
 The configuration files for the component manager will look like (more examples can be found at https://github.com/jhu-dvrk/sawIntuitiveResearchKit/tree/master/share/socket-streamer):
 ```json
@@ -104,7 +109,7 @@ The configuration files for the component manager will look like (more examples 
 
 ```
 
-## Component configuration file
+## Socket streamer configuration file
 
 Each component created need a configuration file that specifies which read command to use to retrieve the data as well as the data type.  For example:
 ```json
@@ -120,6 +125,7 @@ Each component created need a configuration file that specifies which read comma
     ]
 }
 ```
+
 
 ## Testing the streamer
 
