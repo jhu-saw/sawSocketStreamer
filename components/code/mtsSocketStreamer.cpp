@@ -129,19 +129,20 @@ void mtsSocketStreamer::Run(void)
     ProcessQueuedEvents();
 
     if (mSocketConfigured) {
-        Json::Value jsonToSend;
+        // sending data
         for (auto & readFunction: mReadFunctions) {
             mtsExecutionResult result;
             result = readFunction.second.Function(*(readFunction.second.Data));
             if (result.IsOK()) {
+                Json::Value jsonToSend;
                 readFunction.second.Data->SerializeTextJSON(jsonToSend[readFunction.first]);
+                std::string output = mJSONWriter.write(jsonToSend);
+                mSocket.Send(output.c_str(), output.size());
             } else {
                 CMN_LOG_CLASS_RUN_ERROR << "Run: component " << this->GetName() << " run into error "
                                         << result << " while calling " << readFunction.first << std::endl;
             }
         }
-        std::string output = mJSONWriter.write(jsonToSend);
-        mSocket.Send(output.c_str(), output.size());
     }
 }
 
@@ -159,7 +160,6 @@ void mtsSocketStreamer::SetDestination(const std::string &ipPort)
         unsigned short port;
         if ((sscanf(ipPort.c_str() + colon + 1, "%hu", &port) != 1)) {
             CMN_LOG_CLASS_RUN_ERROR << "SetDestination: invalid port " << ipPort << std::endl;
-
         } else {
             mSocket.SetDestination(ipPort.substr(0, colon), port);
             mSocketConfigured = true;
