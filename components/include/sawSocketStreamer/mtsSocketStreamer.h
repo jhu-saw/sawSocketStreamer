@@ -80,9 +80,6 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     bool SocketConfigured;
 
     Json::FastWriter FastWriter;
-
-    mtsFunctionRead GetPositionCartesian;
-
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsSocketStreamer)

@@ -2,7 +2,7 @@
 
 This SAW component allows to stream data from most cisst/SAW components with little or no new code.  It compiles on Windows, Linux and likely MacOS.  It has been tested with:
   * Linux
-  * Streaming prmStateJoint data from sawIntuitiveResearchKit and sawIntuitiveDaVinci
+  * Streaming `prmStateJoint` data from sawIntuitiveResearchKit and sawIntuitiveDaVinci
 
 It current supports UDP sockets and the data is serialized using JSON
 format.  It is used to stream data from the different da Vinci robots
@@ -32,9 +32,7 @@ and connect components.  The dVRK main programs provide this options.  See https
 There is first a command line option to specify one or more configuration files for the component manager:
 ```cpp
     cmnCommandLineOptions options;
-    typedef std::list<std::string> managerConfigType;
-    managerConfigType managerConfig;
-
+    std::list<std::string> managerConfig;
     options.AddOptionMultipleValues("m", "component-manager",
                                     "JSON files to configure component manager",
                                     cmnCommandLineOptions::OPTIONAL_OPTION, &managerConfig);
@@ -42,22 +40,10 @@ There is first a command line option to specify one or more configuration files 
 
 Then one has to use the configuration files to configure the component manager:
 ```cpp
-    const managerConfigType::iterator endConfig = managerConfig.end();
-    for (managerConfigType::iterator iterConfig = managerConfig.begin();
-         iterConfig != endConfig;
-         ++iterConfig) {
-        if (!iterConfig->empty()) {
-            if (!cmnPath::Exists(*iterConfig)) {
-                CMN_LOG_INIT_ERROR << "File " << *iterConfig
-                                   << " not found!" << std::endl;
-            } else {
-                if (!componentManager->ConfigureJSON(*iterConfig)) {
-                    CMN_LOG_INIT_ERROR << "Configure: failed to configure component-manager for "
-                                       << *iterConfig << std::endl;
-                    return -1;
-                }
-            }
-        }
+    mtsManagerLocal * componentManager = mtsManagerLocal::GetInstance();
+    if (!componentManager->ConfigureJSON(managerConfig)) {
+        CMN_LOG_INIT_ERROR << "Configure: failed to configure component manager, check cisstLog for error messages" << std::endl;
+        return -1;
     }
 ```
 
@@ -120,7 +106,7 @@ The configuration files for the component manager will look like (more examples 
 
 ## Component configuration file
 
-Each component created need a configuration file that specifies with read command to use to retrieve the data as well as the data type.  For example:
+Each component created need a configuration file that specifies which read command to use to retrieve the data as well as the data type.  For example:
 ```json
 /* -*- Mode: Javascript; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 {
@@ -141,4 +127,4 @@ To test the streamer, you can use the `nc` tool on Linux.   The main options are
 ```sh
 nc -lu 10.194.86.119 48054
 ```
-At that point you should see a continous stream for text in JSON format.
+At that point you should see a continous stream of text in JSON format.
