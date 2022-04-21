@@ -1,5 +1,5 @@
 #
-# (C) Copyright 2019 Johns Hopkins University (JHU), All Rights
+# (C) Copyright 2019-2022 Johns Hopkins University (JHU), All Rights
 # Reserved.
 #
 # --- begin cisst license - do not edit ---
@@ -10,6 +10,16 @@
 #
 # --- end cisst license ---
 
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
+project (sawSocketStreamerAll VERSION 1.1.0)
+
+find_package (cisst REQUIRED)
+include (${CISST_USE_FILE})
+cisst_cpack_settings (
+  VENDOR "JHU"
+  MAINTAINER "anton.deguet@jhu.edu")
 
 add_subdirectory (components)
+
+include (CPack)
+cpack_add_component (sawSocketStreamer)
