@@ -64,17 +64,29 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     void Cleanup(void);
 
  protected:
+    typedef struct {
+        mtsFunctionRead Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionReadStruct;
+    typedef struct {
+        mtsFunctionWrite Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionWriteStruct;
+    typedef std::map<std::string, FunctionReadStruct> FunctionReadMapType;
+    typedef std::map<std::string, FunctionWriteStruct> FunctionWriteMapType;
+
+    template <class _mapType>
+    void ConfigureCommands(const Json::Value & jsonArray,
+                           _mapType & functionsMap,
+                           const std::string & commandsType,
+                           const std::string & filename);
 
     void Init(void);
     void SetDestination(const std::string &ipPort);
 
-    mtsInterfaceRequired * mInterfaceRequired;
-    typedef struct {
-        mtsFunctionRead Function;
-        mtsGenericObject * Data;
-    } ReadDataStruct;
-    typedef std::map<std::string, ReadDataStruct> DataMapType;
-    DataMapType mReadFunctions;
+    mtsInterfaceRequired * mInterfaceRequired = nullptr;
+    FunctionReadMapType mReadFunctions;
+    FunctionWriteMapType mWriteFunctions;
 
     osaSocket mSocket;
     bool mSocketConfigured;

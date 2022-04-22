@@ -40,6 +40,46 @@ mtsSocketStreamer::~mtsSocketStreamer()
 {
 }
 
+template <class _mapType>
+void mtsSocketStreamer::ConfigureCommands(const Json::Value & jsonArray,
+                                          _mapType & functionsMap,
+                                          const std::string & commandsType,
+                                          const std::string & filename)
+{
+    for (unsigned int index = 0; index < jsonArray.size(); ++index) {
+        Json::Value jsonData = jsonArray[index];
+        // look for name and type
+        std::string name, type;
+        name = jsonData["name"].asString();
+        type = jsonData["type"].asString();
+        if (name.empty() || type.empty()) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: all elements of \"" << commandsType
+                                     << "\" must contain a \"name\" and \"type\" in file "
+                                     << filename << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        // make sure we can create a placeholder for the data type
+        cmnGenericObject * baseObject;
+        baseObject = cmnClassRegister::Create(type);
+        if (!baseObject) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: unable to create an object of type \""
+                                     << type << "\"" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        mtsGenericObject * object = dynamic_cast<mtsGenericObject *>(baseObject);
+        if (!object) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: object of type \""
+                                     << type << "\" is not derived from mtsGenericObject" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        // now, create a placeholder for the data
+        auto & function = functionsMap[name];
+        mInterfaceRequired->AddFunction(name, function.Function);
+        function.Data = object;
+    }
+}
+
 void mtsSocketStreamer::Configure(const std::string & filename)
 {
     if (!cmnPath::Exists(filename)) {
@@ -81,39 +121,19 @@ void mtsSocketStreamer::Configure(const std::string & filename)
         SetDestination(ipPort);
     }
 
-    // look for data
-    Json::Value jsonDataArray = jsonConfig["data"];
-    for (unsigned int index = 0; index < jsonDataArray.size(); ++index) {
-        Json::Value jsonData = jsonDataArray[index];
-        // look for name and type
-        std::string name, type;
-        name = jsonData["name"].asString();
-        type = jsonData["type"].asString();
-        if (name.empty() || type.empty()) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: all data fields must contain a \"name\" and \"type\" in file "
-                                     << filename << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        // make sure we can create a placeholder for the data type
-        cmnGenericObject * baseObject;
-        baseObject = cmnClassRegister::Create(type);
-        if (!baseObject) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: unable to create an object of type \""
-                                     << type << "\"" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        mtsGenericObject * object = dynamic_cast<mtsGenericObject *>(baseObject);
-        if (!object) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: object of type \""
-                                     << type << "\" is not derived from mtsGenericObject" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        // now, create a placeholder for the data
-        auto & readFunction = mReadFunctions[name];
-        mInterfaceRequired->AddFunction(name, readFunction.Function);
-        readFunction.Data = object;
+    // look for read commands
+    Json::Value jsonReadCommandArray = jsonConfig["data"];
+    if (jsonReadCommandArray.size() != 0) {
+        CMN_LOG_CLASS_INIT_WARNING << "Configure: \"data\" is deprecated, use \"read-commands\" instead.  Please edit "
+                                   << filename << std::endl;
+    } else {
+         jsonReadCommandArray = jsonConfig["read-commands"];
     }
+    ConfigureCommands(jsonReadCommandArray, mReadFunctions, "read-commands", filename);
+
+    // look for write commands
+    Json::Value jsonWriteCommandArray = jsonConfig["write-commands"];
+    ConfigureCommands(jsonWriteCommandArray, mWriteFunctions, "write-commands", filename);
 }
 
 void mtsSocketStreamer::Startup(void)
@@ -143,6 +163,56 @@ void mtsSocketStreamer::Run(void)
                                         << result << " while calling " << readFunction.first << std::endl;
             }
         }
+        // receiving data
+        char buffer[1024];
+        int bytesRead = 0;
+        Json::Reader jsonReader;
+        Json::Value jsonReceived;
+        do {
+            bytesRead = mSocket.Receive(buffer, sizeof(buffer));
+            if (bytesRead > 0) {
+                buffer[bytesRead] = 0;
+                // trying to parse the content as JSON
+                if (!jsonReader.parse(buffer, jsonReceived)) {
+                    CMN_LOG_CLASS_RUN_ERROR << "Run: failed to parse buffer: " << buffer << std::endl
+                                            << "Error(s):" << std::endl
+                                            << jsonReader.getFormattedErrorMessages()
+                                            << std::endl;
+                }
+                // get the name of command from JSON
+                const auto end = jsonReceived.end();
+                for (auto received = jsonReceived.begin();
+                     received != end;
+                     ++received) {
+                    auto commandName = received.key().asString();
+                    auto writeFunction = mWriteFunctions.find(commandName);
+                    if (writeFunction != mWriteFunctions.end()) {
+                        bool gotException = false;
+                        try {
+                            writeFunction->second.Data->DeSerializeTextJSON(*received);
+                        } catch (const std::exception & e) {
+                            gotException = true;
+                            CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                    << std::endl << " for command \"" << commandName
+                                                    << "\": " << e.what() << std::endl;
+                        } catch (...) {
+                            gotException = true;
+                            CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                    << std::endl << " for command \""
+                                                    << commandName << "\", unkown exception" << std::endl;
+                        }
+                        if (!gotException) {
+                            writeFunction->second.Function(*(writeFunction->second.Data));
+                        }
+                    } else {
+                        CMN_LOG_CLASS_RUN_ERROR << "Run: write command \"" << commandName
+                                                << "\" not found.  Make sure you added it to your configuration file"
+                                                << std::endl;
+                    }
+                }
+            }
+        } while (bytesRead != 0);
+
     }
 }
 
