@@ -25,6 +25,16 @@ http://www.cisst.org/cisst/license.txt.
 
 CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsSocketStreamer, mtsTaskPeriodic, mtsTaskPeriodicConstructorArg);
 
+void mtsSocketStreamer::EventWriteStruct::Callback(const mtsGenericObject & payload)
+{
+    if (Streamer && Streamer->mSocketConfigured) {
+        Json::Value jsonToSend;
+        payload.SerializeTextJSON(jsonToSend[Name]);
+        std::string output = Streamer->mJSONWriter.write(jsonToSend);
+        Streamer->mSocket.Send(output.c_str(), output.size());
+    }
+}
+
 void mtsSocketStreamer::Init(void)
 {
     mSocketConfigured = false;
@@ -134,6 +144,16 @@ void mtsSocketStreamer::Configure(const std::string & filename)
     // look for write commands
     Json::Value jsonWriteCommandArray = jsonConfig["write-commands"];
     ConfigureCommands(jsonWriteCommandArray, mWriteFunctions, "write-commands", filename);
+
+     // look for write events
+    Json::Value jsonWriteEventArray = jsonConfig["write-events"];
+    for (const auto & jsonEvent : jsonWriteEventArray) {
+        const std::string name = jsonEvent.asString();
+        auto & event = mWriteEvents[name];
+        event.Name = name;
+        event.Streamer = this;
+        mInterfaceRequired->AddEventHandlerWriteGeneric(&EventWriteStruct::Callback, &event, name);
+    }
 }
 
 void mtsSocketStreamer::Startup(void)

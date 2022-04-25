@@ -33,6 +33,21 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
 {
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
 
+ protected:
+    typedef struct {
+        mtsFunctionRead Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionReadStruct;
+    typedef struct {
+        mtsFunctionWrite Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionWriteStruct;
+    typedef struct {
+        void Callback(const mtsGenericObject & payload);
+        std::string Name;
+        mtsSocketStreamer * Streamer = nullptr;
+    } EventWriteStruct;
+
  public:
     /*! Constructor
         \param name Name of the component
@@ -64,16 +79,9 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     void Cleanup(void);
 
  protected:
-    typedef struct {
-        mtsFunctionRead Function;
-        mtsGenericObject * Data = nullptr;
-    } FunctionReadStruct;
-    typedef struct {
-        mtsFunctionWrite Function;
-        mtsGenericObject * Data = nullptr;
-    } FunctionWriteStruct;
     typedef std::map<std::string, FunctionReadStruct> FunctionReadMapType;
     typedef std::map<std::string, FunctionWriteStruct> FunctionWriteMapType;
+    typedef std::map<std::string, EventWriteStruct> EventWriteMapType;
 
     template <class _mapType>
     void ConfigureCommands(const Json::Value & jsonArray,
@@ -87,6 +95,7 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     mtsInterfaceRequired * mInterfaceRequired = nullptr;
     FunctionReadMapType mReadFunctions;
     FunctionWriteMapType mWriteFunctions;
+    EventWriteMapType mWriteEvents;
 
     osaSocket mSocket;
     bool mSocketConfigured;
