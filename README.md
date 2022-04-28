@@ -4,10 +4,10 @@ This SAW component allows to stream data from most cisst/SAW components with lit
   * Linux
   * Streaming `prmStateJoint` data from sawIntuitiveResearchKit and sawIntuitiveDaVinci
 
-It current supports UDP sockets and the data is serialized using JSON
+It currently supports UDP sockets and the data is serialized using the JSON
 format.  It is used to stream data from the different da Vinci robots
 (at JHU) to HoloLens displays.  On the HoloLens side, one can use the
-open source package [dvrk-xr](https://github.com/jhu-dvrk/dvrk-xr).
+open source package [dvrk-xr](https://github.com/jhu-dvrk/dvrk-xr).  It can be used to receive and send data to any other SAW component (see https://github.com/jhu-cisst/cisst/wiki/cisst-libraries-and-SAW-components)
 
 Based on user requests, we could add:
   * TCP support
@@ -24,7 +24,7 @@ Based on user requests, we could add:
 
 ## Adding the component
 
-One can create and add the `mtsSocketStreamer` component manually in
+You can create and add the `mtsSocketStreamer` component manually in
 your `main` C/C++ code but we strongly recommend using the
 `cisstMultiTask` manager ability to load a configuration file to add
 and connect components.  Most cisst/SAW (including dVRK) programs have
