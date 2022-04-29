@@ -5,7 +5,7 @@
   Author(s):  Peter Kazanzides, Anton Deguet
   Created on: 2013-12-02
 
-  (C) Copyright 2013-2019 Johns Hopkins University (JHU), All Rights Reserved.
+  (C) Copyright 2013-2022 Johns Hopkins University (JHU), All Rights Reserved.
 
 --- begin cisst license - do not edit ---
 
@@ -42,6 +42,11 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
         mtsFunctionWrite Function;
         mtsGenericObject * Data = nullptr;
     } FunctionWriteStruct;
+    typedef struct {
+        void Callback(void);
+        std::string Name;
+        mtsSocketStreamer * Streamer = nullptr;
+    } EventVoidStruct;
     typedef struct {
         void Callback(const mtsGenericObject & payload);
         std::string Name;
@@ -80,7 +85,9 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
 
  protected:
     typedef std::map<std::string, FunctionReadStruct> FunctionReadMapType;
+    typedef std::map<std::string, mtsFunctionVoid> FunctionVoidMapType;
     typedef std::map<std::string, FunctionWriteStruct> FunctionWriteMapType;
+    typedef std::map<std::string, EventVoidStruct> EventVoidMapType;
     typedef std::map<std::string, EventWriteStruct> EventWriteMapType;
 
     template <class _mapType>
@@ -94,7 +101,9 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
 
     mtsInterfaceRequired * mInterfaceRequired = nullptr;
     FunctionReadMapType mReadFunctions;
+    FunctionVoidMapType mVoidFunctions;
     FunctionWriteMapType mWriteFunctions;
+    EventVoidMapType mVoidEvents;
     EventWriteMapType mWriteEvents;
 
     osaSocket mSocket;

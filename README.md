@@ -117,20 +117,41 @@ Each component created need a configuration file that specifies which read comma
 {
     "ip": "10.194.86.119",
     "port": "48054",
-    "data": [
+    "read-commands": [
         {
             "name": "measured_js",
             "type": "prmStateJoint"
         }
     ]
+    ,
+    "void-commands": ["Freeze"]
+    ,
+    "write-commands": [
+        {
+            "name": "servo_jp",
+            "type": "prmPositionJointSet"
+        }
+    ]
+    ,
+    "write-events": ["operating_state"]
 }
 ```
 
 
 ## Testing the streamer
 
-To test the streamer, you can use the `nc` tool on Linux.   The main options are `l` to listen and `u` for UDP protocol.  Then you need to add the IP address and port.   With the example above, try:
+To test the read commands and events, you can use the `nc` tool on
+Linux.  The main options are `l` to listen and `u` for UDP protocol.
+Then you need to add the IP address and port.  With the example above,
+try:
 ```sh
 nc -lu 10.194.86.119 48054
 ```
 At that point you should see a continous stream of text in JSON format.
+
+To test the void and write commands, you need to create your own code
+and send the command name and payload in JSON format.  For void
+commands, send an empty string (`""`).  You can find an example in
+Python in the sawIntuitiveResearchKit repository under
+`share/socket-streamer`:
+https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/devel/share/socket-streamer/example.py

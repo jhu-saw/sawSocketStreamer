@@ -25,6 +25,16 @@ http://www.cisst.org/cisst/license.txt.
 
 CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsSocketStreamer, mtsTaskPeriodic, mtsTaskPeriodicConstructorArg);
 
+void mtsSocketStreamer::EventVoidStruct::Callback(void)
+{
+    if (Streamer && Streamer->mSocketConfigured) {
+        Json::Value jsonToSend;
+        jsonToSend[Name] = std::string("");
+        std::string output = Streamer->mJSONWriter.write(jsonToSend);
+        Streamer->mSocket.Send(output.c_str(), output.size());
+    }
+}
+
 void mtsSocketStreamer::EventWriteStruct::Callback(const mtsGenericObject & payload)
 {
     if (Streamer && Streamer->mSocketConfigured) {
@@ -141,11 +151,29 @@ void mtsSocketStreamer::Configure(const std::string & filename)
     }
     ConfigureCommands(jsonReadCommandArray, mReadFunctions, "read-commands", filename);
 
-    // look for write commands
+    // void commands
+    Json::Value jsonVoidCommandArray = jsonConfig["void-commands"];
+    for (const auto & jsonCommand : jsonVoidCommandArray) {
+        const std::string name = jsonCommand.asString();
+        auto & function = mVoidFunctions[name];
+        mInterfaceRequired->AddFunction(name, function);
+    }
+
+    // write commands
     Json::Value jsonWriteCommandArray = jsonConfig["write-commands"];
     ConfigureCommands(jsonWriteCommandArray, mWriteFunctions, "write-commands", filename);
 
-     // look for write events
+     // void events
+    Json::Value jsonVoidEventArray = jsonConfig["void-events"];
+    for (const auto & jsonEvent : jsonVoidEventArray) {
+        const std::string name = jsonEvent.asString();
+        auto & event = mVoidEvents[name];
+        event.Name = name;
+        event.Streamer = this;
+        mInterfaceRequired->AddEventHandlerVoid(&EventVoidStruct::Callback, &event, name);
+    }
+
+    // write events
     Json::Value jsonWriteEventArray = jsonConfig["write-events"];
     for (const auto & jsonEvent : jsonWriteEventArray) {
         const std::string name = jsonEvent.asString();
@@ -205,34 +233,43 @@ void mtsSocketStreamer::Run(void)
                      received != end;
                      ++received) {
                     auto commandName = received.key().asString();
-                    auto writeFunction = mWriteFunctions.find(commandName);
-                    if (writeFunction != mWriteFunctions.end()) {
-                        bool gotException = false;
-                        try {
-                            writeFunction->second.Data->DeSerializeTextJSON(*received);
-                        } catch (const std::exception & e) {
-                            gotException = true;
-                            CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
-                                                    << std::endl << " for command \"" << commandName
-                                                    << "\": " << e.what() << std::endl;
-                        } catch (...) {
-                            gotException = true;
-                            CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
-                                                    << std::endl << " for command \""
-                                                    << commandName << "\", unkown exception" << std::endl;
+                    // check if it's a void function
+                    auto voidFunction = mVoidFunctions.find(commandName);
+                    if (voidFunction != mVoidFunctions.end()) {
+                        voidFunction->second.Execute();
+                    }
+                    // check if it's a write function
+                    else {
+                        auto writeFunction = mWriteFunctions.find(commandName);
+                        if (writeFunction != mWriteFunctions.end()) {
+                            bool gotException = false;
+                            try {
+                                writeFunction->second.Data->DeSerializeTextJSON(*received);
+                            } catch (const std::exception & e) {
+                                gotException = true;
+                                CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                        << std::endl << " for command \"" << commandName
+                                                        << "\": " << e.what() << std::endl;
+                            } catch (...) {
+                                gotException = true;
+                                CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                        << std::endl << " for command \""
+                                                        << commandName << "\", unkown exception" << std::endl;
+                            }
+                            if (!gotException) {
+                                writeFunction->second.Function(*(writeFunction->second.Data));
+                            }
                         }
-                        if (!gotException) {
-                            writeFunction->second.Function(*(writeFunction->second.Data));
+                        // unknown function
+                        else {
+                            CMN_LOG_CLASS_RUN_ERROR << "Run: voir or write command \"" << commandName
+                                                    << "\" not found.  Make sure you added it to your configuration file"
+                                                    << std::endl;
                         }
-                    } else {
-                        CMN_LOG_CLASS_RUN_ERROR << "Run: write command \"" << commandName
-                                                << "\" not found.  Make sure you added it to your configuration file"
-                                                << std::endl;
                     }
                 }
             }
         } while (bytesRead != 0);
-
     }
 }
 
