@@ -1,0 +1,13 @@
+repositories:
+  cisst-saw/cisstNetlib:
+    type: git
+    url: https://github.com/jhu-cisst/cisstNetlib.git
+    version: 3.2.0
+  cisst-saw/cisst:
+    type: git
+    url: https://github.com/jhu-cisst/cisst.git
+    version: 1.2.1
+  cisst-saw/sawSocketStreamer:
+    type: git
+    url: https://github.com/jhu-saw/sawSocketStreamer.git
+    version: 1.2.0

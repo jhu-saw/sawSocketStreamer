@@ -124,7 +124,7 @@ Each component created need a configuration file that specifies which read comma
         }
     ]
     ,
-    "void-commands": ["Freeze"]
+    "void-commands": ["hold", "free"]
     ,
     "write-commands": [
         {
@@ -155,3 +155,36 @@ commands, send an empty string (`""`).  You can find an example in
 Python in the sawIntuitiveResearchKit repository under
 `share/socket-streamer`:
 https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/devel/share/socket-streamer/example.py
+
+## Using the socket streamer with Unity
+
+This is based on code that can be found in the `share` directory.
+This code was originally written by An Chi Chen and Muhammad Hadi when
+they were students at Johns Hopkins.  Their goal was to visualize and
+control a dVRK PSM from Unity.
+
+The main parts are setting up the socket in the ``start()``:
+```csharp
+    // udp using socket
+    data = new byte[1024];
+    IPEndPoint ip = new IPEndPoint(IPAddress.Any, 48051);    // ensure that this port is the same as the one youre sending data from
+    socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+    socket.Bind(ip);
+    IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+    remote = (EndPoint)(sender);
+```
+
+And then you can read from the socket using:
+```csharp
+    // read in message from dVRK
+    data = new byte[1024];
+    socket.ReceiveFrom(data, ref remote);
+    dVRK_msg = Encoding.UTF8.GetString(data);    // dVRK_msg will then contain the data
+```
+
+Finally an example of how you would send data:
+```csharp
+    // send json strings to dVRK
+    send_msg = Encoding.UTF8.GetBytes(pose_message);    // pose_message is string to send
+    socket.SendTo(send_msg, remote);
+```

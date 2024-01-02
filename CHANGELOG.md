@@ -1,6 +1,21 @@
 Change log
 ==========
 
+
+1.2.0 (2024-01-02)
+==================
+
+* API changes:
+  * In JSON configuration file, `data` has been replaced by `read-commands`
+* Deprecated features:
+  * `.rosintall` has been removed, migrated to `vcs`
+* New features:
+  * Added support for void and write events
+  * Added void and write commands
+  * Added snippet of code for C#/Unity
+* Bug fixes:
+  * Fixed CMake to use new cisst CMake macros, compiles with catkin and colcon
+
 1.1.0 (2021-04-08)
 ==================
 

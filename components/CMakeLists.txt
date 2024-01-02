@@ -1,5 +1,5 @@
 #
-# (C) Copyright 2019-2023 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2019-2024 Johns Hopkins University (JHU), All Rights Reserved.
 #
 # --- begin cisst license - do not edit ---
 #
@@ -10,11 +10,7 @@
 # --- end cisst license ---
 
 cmake_minimum_required (VERSION 3.10)
-project (sawSocketStreamer VERSION 1.1.0)
-
-set (CMAKE_CXX_STANDARD 14)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-set (CMAKE_CXX_EXTENSIONS OFF)
+project (sawSocketStreamer VERSION 1.2.0)
 
 # create a list of required cisst libraries
 set (REQUIRED_CISST_LIBRARIES cisstCommon
@@ -23,7 +19,7 @@ set (REQUIRED_CISST_LIBRARIES cisstCommon
                               cisstMultiTask
                               cisstParameterTypes)
 
-find_package (cisst 1.2.0 REQUIRED ${REQUIRED_CISST_LIBRARIES})
+find_package (cisst 1.2.1 REQUIRED ${REQUIRED_CISST_LIBRARIES})
 
 if (cisst_FOUND_AS_REQUIRED)
 
@@ -61,8 +57,7 @@ if (cisst_FOUND_AS_REQUIRED)
            "${sawSocketStreamer_SOURCE_DIR}/include/sawSocketStreamer"
            "${sawSocketStreamer_BINARY_DIR}/include/sawSocketStreamer"
            DESTINATION include
-           COMPONENT sawSocketStreamer-dev
-           PATTERN .svn EXCLUDE)
+           COMPONENT sawSocketStreamer-dev)
 
   install (TARGETS sawSocketStreamer COMPONENT sawSocketStreamer
            RUNTIME DESTINATION bin
