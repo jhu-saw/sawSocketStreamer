@@ -5,7 +5,7 @@
   Author(s):  Peter Kazanzides, Anton Deguet
   Created on: 2013-12-02
 
-  (C) Copyright 2013-2019 Johns Hopkins University (JHU), All Rights Reserved.
+  (C) Copyright 2013-2022 Johns Hopkins University (JHU), All Rights Reserved.
 
 --- begin cisst license - do not edit ---
 
@@ -25,19 +25,79 @@ http://www.cisst.org/cisst/license.txt.
 
 CMN_IMPLEMENT_SERVICES_DERIVED_ONEARG(mtsSocketStreamer, mtsTaskPeriodic, mtsTaskPeriodicConstructorArg);
 
+void mtsSocketStreamer::EventVoidStruct::Callback(void)
+{
+    if (Streamer && Streamer->mSocketConfigured) {
+        Json::Value jsonToSend;
+        jsonToSend[Name] = std::string("");
+        std::string output = Streamer->mJSONWriter.write(jsonToSend);
+        Streamer->mSocket.Send(output.c_str(), output.size());
+    }
+}
+
+void mtsSocketStreamer::EventWriteStruct::Callback(const mtsGenericObject & payload)
+{
+    if (Streamer && Streamer->mSocketConfigured) {
+        Json::Value jsonToSend;
+        payload.SerializeTextJSON(jsonToSend[Name]);
+        std::string output = Streamer->mJSONWriter.write(jsonToSend);
+        Streamer->mSocket.Send(output.c_str(), output.size());
+    }
+}
+
 void mtsSocketStreamer::Init(void)
 {
-    SocketConfigured = false;
+    mSocketConfigured = false;
 
     mtsInterfaceProvided * provided = AddInterfaceProvided("Configuration");
     if (provided) {
         provided->AddCommandWrite(&mtsSocketStreamer::SetDestination, this, "SetDestination");
     }
-    InterfaceRequired = AddInterfaceRequired("Required");
+    mInterfaceRequired = AddInterfaceRequired("Required");
 }
 
 mtsSocketStreamer::~mtsSocketStreamer()
 {
+}
+
+template <class _mapType>
+void mtsSocketStreamer::ConfigureCommands(const Json::Value & jsonArray,
+                                          _mapType & functionsMap,
+                                          const std::string & commandsType,
+                                          const std::string & filename)
+{
+    for (unsigned int index = 0; index < jsonArray.size(); ++index) {
+        Json::Value jsonData = jsonArray[index];
+        // look for name and type
+        std::string name, type;
+        name = jsonData["name"].asString();
+        type = jsonData["type"].asString();
+        if (name.empty() || type.empty()) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: all elements of \"" << commandsType
+                                     << "\" must contain a \"name\" and \"type\" in file "
+                                     << filename << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        // make sure we can create a placeholder for the data type
+        cmnGenericObject * baseObject;
+        baseObject = cmnClassRegister::Create(type);
+        if (!baseObject) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: unable to create an object of type \""
+                                     << type << "\"" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        mtsGenericObject * object = dynamic_cast<mtsGenericObject *>(baseObject);
+        if (!object) {
+            CMN_LOG_CLASS_INIT_ERROR << "Configure: object of type \""
+                                     << type << "\" is not derived from mtsGenericObject" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        // now, create a placeholder for the data
+        auto & function = functionsMap[name];
+        mInterfaceRequired->AddFunction(name, function.Function);
+        function.Data = object;
+    }
 }
 
 void mtsSocketStreamer::Configure(const std::string & filename)
@@ -81,44 +141,52 @@ void mtsSocketStreamer::Configure(const std::string & filename)
         SetDestination(ipPort);
     }
 
-    // look for data
-    Json::Value jsonDataArray = jsonConfig["data"];
-    for (unsigned int index = 0; index < jsonDataArray.size(); ++index) {
-        Json::Value jsonData = jsonDataArray[index];
-        // look for name and type
-        std::string name, type;
-        name = jsonData["name"].asString();
-        type = jsonData["type"].asString();
-        if (name.empty() || type.empty()) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: all data fields must contain a \"name\" and \"type\" in file "
-                                     << filename << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        // make sure we can create a placeholder for the data type
-        cmnGenericObject * baseObject;
-        baseObject = cmnClassRegister::Create(type);
-        if (!baseObject) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: unable to create an object of type \""
-                                     << type << "\"" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        mtsGenericObject * object = dynamic_cast<mtsGenericObject *>(baseObject);
-        if (!object) {
-            CMN_LOG_CLASS_INIT_ERROR << "Configure: object of type \""
-                                     << type << "\" is not derived from mtsGenericObject" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        
-        // now, create a placeholder for the data
-        DataStruct & data = DataMap[name];
-        InterfaceRequired->AddFunction(name, data.Function);
-        data.Data = object;
+    // look for read commands
+    Json::Value jsonReadCommandArray = jsonConfig["data"];
+    if (jsonReadCommandArray.size() != 0) {
+        CMN_LOG_CLASS_INIT_WARNING << "Configure: \"data\" is deprecated, use \"read-commands\" instead.  Please edit "
+                                   << filename << std::endl;
+    } else {
+         jsonReadCommandArray = jsonConfig["read-commands"];
+    }
+    ConfigureCommands(jsonReadCommandArray, mReadFunctions, "read-commands", filename);
+
+    // void commands
+    Json::Value jsonVoidCommandArray = jsonConfig["void-commands"];
+    for (const auto & jsonCommand : jsonVoidCommandArray) {
+        const std::string name = jsonCommand.asString();
+        auto & function = mVoidFunctions[name];
+        mInterfaceRequired->AddFunction(name, function);
+    }
+
+    // write commands
+    Json::Value jsonWriteCommandArray = jsonConfig["write-commands"];
+    ConfigureCommands(jsonWriteCommandArray, mWriteFunctions, "write-commands", filename);
+
+     // void events
+    Json::Value jsonVoidEventArray = jsonConfig["void-events"];
+    for (const auto & jsonEvent : jsonVoidEventArray) {
+        const std::string name = jsonEvent.asString();
+        auto & event = mVoidEvents[name];
+        event.Name = name;
+        event.Streamer = this;
+        mInterfaceRequired->AddEventHandlerVoid(&EventVoidStruct::Callback, &event, name);
+    }
+
+    // write events
+    Json::Value jsonWriteEventArray = jsonConfig["write-events"];
+    for (const auto & jsonEvent : jsonWriteEventArray) {
+        const std::string name = jsonEvent.asString();
+        auto & event = mWriteEvents[name];
+        event.Name = name;
+        event.Streamer = this;
+        mInterfaceRequired->AddEventHandlerWriteGeneric(&EventWriteStruct::Callback, &event, name);
     }
 }
 
 void mtsSocketStreamer::Startup(void)
 {
-    if (!SocketConfigured) {
+    if (!mSocketConfigured) {
         CMN_LOG_CLASS_INIT_ERROR << "Startup: port not configured for " << this->GetName() << std::endl;
     }
 }
@@ -128,30 +196,86 @@ void mtsSocketStreamer::Run(void)
     ProcessQueuedCommands();
     ProcessQueuedEvents();
 
-    if (SocketConfigured) {
-        Json::Value jsonToSend;
-        DataMapType::iterator iter;
-        const DataMapType::iterator end = DataMap.end();
-        for (iter = DataMap.begin();
-             iter != end;
-             ++iter) {
+    if (mSocketConfigured) {
+        // sending data
+        for (auto & readFunction: mReadFunctions) {
             mtsExecutionResult result;
-            result = iter->second.Function(*(iter->second.Data));
+            result = readFunction.second.Function(*(readFunction.second.Data));
             if (result.IsOK()) {
-                iter->second.Data->SerializeTextJSON(jsonToSend[iter->first]);
+                Json::Value jsonToSend;
+                readFunction.second.Data->SerializeTextJSON(jsonToSend[readFunction.first]);
+                std::string output = mJSONWriter.write(jsonToSend);
+                mSocket.Send(output.c_str(), output.size());
             } else {
                 CMN_LOG_CLASS_RUN_ERROR << "Run: component " << this->GetName() << " run into error "
-                                        << result << " while calling " << iter->first << std::endl;
+                                        << result << " while calling " << readFunction.first << std::endl;
             }
         }
-        std::string output = FastWriter.write(jsonToSend);
-        Socket.Send(output.c_str(), output.size());
+        // receiving data
+        char buffer[1024];
+        int bytesRead = 0;
+        Json::Reader jsonReader;
+        Json::Value jsonReceived;
+        do {
+            bytesRead = mSocket.Receive(buffer, sizeof(buffer));
+            if (bytesRead > 0) {
+                buffer[bytesRead] = 0;
+                // trying to parse the content as JSON
+                if (!jsonReader.parse(buffer, jsonReceived)) {
+                    CMN_LOG_CLASS_RUN_ERROR << "Run: failed to parse buffer: " << buffer << std::endl
+                                            << "Error(s):" << std::endl
+                                            << jsonReader.getFormattedErrorMessages()
+                                            << std::endl;
+                }
+                // get the name of command from JSON
+                const auto end = jsonReceived.end();
+                for (auto received = jsonReceived.begin();
+                     received != end;
+                     ++received) {
+                    auto commandName = received.key().asString();
+                    // check if it's a void function
+                    auto voidFunction = mVoidFunctions.find(commandName);
+                    if (voidFunction != mVoidFunctions.end()) {
+                        voidFunction->second.Execute();
+                    }
+                    // check if it's a write function
+                    else {
+                        auto writeFunction = mWriteFunctions.find(commandName);
+                        if (writeFunction != mWriteFunctions.end()) {
+                            bool gotException = false;
+                            try {
+                                writeFunction->second.Data->DeSerializeTextJSON(*received);
+                            } catch (const std::exception & e) {
+                                gotException = true;
+                                CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                        << std::endl << " for command \"" << commandName
+                                                        << "\": " << e.what() << std::endl;
+                            } catch (...) {
+                                gotException = true;
+                                CMN_LOG_CLASS_RUN_ERROR << "Run: failed to deserialize payload: " << *received
+                                                        << std::endl << " for command \""
+                                                        << commandName << "\", unkown exception" << std::endl;
+                            }
+                            if (!gotException) {
+                                writeFunction->second.Function(*(writeFunction->second.Data));
+                            }
+                        }
+                        // unknown function
+                        else {
+                            CMN_LOG_CLASS_RUN_ERROR << "Run: voir or write command \"" << commandName
+                                                    << "\" not found.  Make sure you added it to your configuration file"
+                                                    << std::endl;
+                        }
+                    }
+                }
+            }
+        } while (bytesRead != 0);
     }
 }
 
 void mtsSocketStreamer::Cleanup(void)
 {
-    Socket.Close();
+    mSocket.Close();
 }
 
 void mtsSocketStreamer::SetDestination(const std::string &ipPort)
@@ -163,10 +287,9 @@ void mtsSocketStreamer::SetDestination(const std::string &ipPort)
         unsigned short port;
         if ((sscanf(ipPort.c_str() + colon + 1, "%hu", &port) != 1)) {
             CMN_LOG_CLASS_RUN_ERROR << "SetDestination: invalid port " << ipPort << std::endl;
-
         } else {
-            Socket.SetDestination(ipPort.substr(0, colon), port);
-            SocketConfigured = true;
+            mSocket.SetDestination(ipPort.substr(0, colon), port);
+            mSocketConfigured = true;
         }
     }
 }

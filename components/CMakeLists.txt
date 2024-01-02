@@ -1,5 +1,5 @@
 #
-# (C) Copyright 2019 Johns Hopkins University (JHU), All Rights Reserved.
+# (C) Copyright 2019-2024 Johns Hopkins University (JHU), All Rights Reserved.
 #
 # --- begin cisst license - do not edit ---
 #
@@ -9,42 +9,61 @@
 #
 # --- end cisst license ---
 
-project (sawSocketStreamer)
+cmake_minimum_required (VERSION 3.10)
+project (sawSocketStreamer VERSION 1.2.0)
 
-cmake_minimum_required(VERSION 2.8)
+# create a list of required cisst libraries
+set (REQUIRED_CISST_LIBRARIES cisstCommon
+                              cisstVector
+                              cisstOSAbstraction
+                              cisstMultiTask
+                              cisstParameterTypes)
 
-set (REQUIRED_CISST_LIBRARIES
-     cisstCommon
-     cisstVector
-     cisstOSAbstraction
-     cisstMultiTask
-     cisstParameterTypes)
+find_package (cisst 1.2.1 REQUIRED ${REQUIRED_CISST_LIBRARIES})
 
-find_package (cisst REQUIRED ${REQUIRED_CISST_LIBRARIES})
+if (cisst_FOUND_AS_REQUIRED)
 
-if (cisst_FOUND)
   # load cisst configuration
   include (${CISST_USE_FILE})
 
   # catkin/ROS paths
-  cisst_is_catkin_build (sawSocketStreamer_IS_CATKIN_BUILT)
-  if (sawSocketStreamer_IS_CATKIN_BUILT)
-    set (LIBRARY_OUTPUT_PATH "${CATKIN_DEVEL_PREFIX}/lib")
-  endif ()
+  cisst_set_output_path ()
 
-  include_directories (${CMAKE_BINARY_DIR})
-
+  # create/configure file for find_package (sawSocketStreamer)
   set (sawSocketStreamer_INCLUDE_DIR
-       "${sawSocketStreamer_SOURCE_DIR}/include")
+       "${sawSocketStreamer_SOURCE_DIR}/include"
+       "${sawSocketStreamer_BINARY_DIR}/include")
+  set (sawSocketStreamer_HEADER_DIR "${sawSocketStreamer_SOURCE_DIR}/include/sawSocketStreamer")
+  set (sawSocketStreamer_LIBRARY_DIR "${LIBRARY_OUTPUT_PATH}")
+  set (sawSocketStreamer_LIBRARIES sawSocketStreamer)
 
-  include_directories (${sawSocketStreamer_INCLUDE_DIR})
+  # Allow c++ code to find local header files
+  include_directories (${sawSocketStreamer_INCLUDE_DIR} ${sawSocketStreamer_BINARY_DIR})
+
+  # add all config files for this component
+  cisst_add_config_files (sawSocketStreamer)
 
   add_library (sawSocketStreamer
-               "include/sawSocketStreamer/sawSocketStreamerExport.h"
-               "include/sawSocketStreamer/mtsSocketStreamer.h"
-               "code/mtsSocketStreamer.cpp")
+               ${sawSocketStreamer_HEADER_DIR}/sawSocketStreamerExport.h
+               code/mtsSocketStreamer.cpp
+               ${sawSocketStreamer_HEADER_DIR}/mtsSocketStreamer.h)
+  set_target_properties (sawSocketStreamer PROPERTIES
+                         VERSION ${sawSocketStreamer_VERSION}
+                         FOLDER "sawSocketStreamer")
+  cisst_target_link_libraries (sawSocketStreamer ${REQUIRED_CISST_LIBRARIES})
 
-  cisst_target_link_libraries (sawSocketStreamer
-                               ${REQUIRED_CISST_LIBRARIES})
+  # Install target for headers and library
+  install (DIRECTORY
+           "${sawSocketStreamer_SOURCE_DIR}/include/sawSocketStreamer"
+           "${sawSocketStreamer_BINARY_DIR}/include/sawSocketStreamer"
+           DESTINATION include
+           COMPONENT sawSocketStreamer-dev)
 
-endif (cisst_FOUND)
+  install (TARGETS sawSocketStreamer COMPONENT sawSocketStreamer
+           RUNTIME DESTINATION bin
+           LIBRARY DESTINATION lib
+           ARCHIVE DESTINATION lib)
+
+else (cisst_FOUND_AS_REQUIRED)
+  message ("Information: code in ${CMAKE_CURRENT_SOURCE_DIR} will not be compiled, it requires ${REQUIRED_CISST_LIBRARIES}")
+endif (cisst_FOUND_AS_REQUIRED)

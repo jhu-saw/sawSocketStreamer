@@ -5,7 +5,7 @@
   Author(s):  Peter Kazanzides, Anton Deguet
   Created on: 2013-12-02
 
-  (C) Copyright 2013-2019 Johns Hopkins University (JHU), All Rights Reserved.
+  (C) Copyright 2013-2022 Johns Hopkins University (JHU), All Rights Reserved.
 
 --- begin cisst license - do not edit ---
 
@@ -33,6 +33,26 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
 {
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
 
+ protected:
+    typedef struct {
+        mtsFunctionRead Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionReadStruct;
+    typedef struct {
+        mtsFunctionWrite Function;
+        mtsGenericObject * Data = nullptr;
+    } FunctionWriteStruct;
+    typedef struct {
+        void Callback(void);
+        std::string Name;
+        mtsSocketStreamer * Streamer = nullptr;
+    } EventVoidStruct;
+    typedef struct {
+        void Callback(const mtsGenericObject & payload);
+        std::string Name;
+        mtsSocketStreamer * Streamer = nullptr;
+    } EventWriteStruct;
+
  public:
     /*! Constructor
         \param name Name of the component
@@ -40,14 +60,14 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     */
     inline mtsSocketStreamer(const std::string & name, double period):
         mtsTaskPeriodic(name, period),
-        Socket(osaSocket::UDP)
+        mSocket(osaSocket::UDP)
         {
             Init();
         }
 
     inline mtsSocketStreamer(const mtsTaskPeriodicConstructorArg & arg):
         mtsTaskPeriodic(arg),
-        Socket(osaSocket::UDP)
+        mSocket(osaSocket::UDP)
         {
             Init();
         }
@@ -64,25 +84,32 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     void Cleanup(void);
 
  protected:
+    typedef std::map<std::string, FunctionReadStruct> FunctionReadMapType;
+    typedef std::map<std::string, mtsFunctionVoid> FunctionVoidMapType;
+    typedef std::map<std::string, FunctionWriteStruct> FunctionWriteMapType;
+    typedef std::map<std::string, EventVoidStruct> EventVoidMapType;
+    typedef std::map<std::string, EventWriteStruct> EventWriteMapType;
+
+    template <class _mapType>
+    void ConfigureCommands(const Json::Value & jsonArray,
+                           _mapType & functionsMap,
+                           const std::string & commandsType,
+                           const std::string & filename);
 
     void Init(void);
     void SetDestination(const std::string &ipPort);
 
-    mtsInterfaceRequired * InterfaceRequired;
-    typedef struct {
-        mtsFunctionRead Function;
-        mtsGenericObject * Data;
-    } DataStruct;
-    typedef std::map<std::string, DataStruct> DataMapType;
-    DataMapType DataMap;
+    mtsInterfaceRequired * mInterfaceRequired = nullptr;
+    FunctionReadMapType mReadFunctions;
+    FunctionVoidMapType mVoidFunctions;
+    FunctionWriteMapType mWriteFunctions;
+    EventVoidMapType mVoidEvents;
+    EventWriteMapType mWriteEvents;
 
-    osaSocket Socket;
-    bool SocketConfigured;
+    osaSocket mSocket;
+    bool mSocketConfigured;
 
-    Json::FastWriter FastWriter;
-
-    mtsFunctionRead GetPositionCartesian;
-
+    Json::FastWriter mJSONWriter;
 };
 
 CMN_DECLARE_SERVICES_INSTANTIATION(mtsSocketStreamer)

@@ -2,12 +2,12 @@
 
 This SAW component allows to stream data from most cisst/SAW components with little or no new code.  It compiles on Windows, Linux and likely MacOS.  It has been tested with:
   * Linux
-  * Streaming prmStateJoint data from sawIntuitiveResearchKit and sawIntuitiveDaVinci
+  * Streaming `prmStateJoint` data from sawIntuitiveResearchKit and sawIntuitiveDaVinci
 
-It current supports UDP sockets and the data is serialized using JSON
+It currently supports UDP sockets and the data is serialized using the JSON
 format.  It is used to stream data from the different da Vinci robots
 (at JHU) to HoloLens displays.  On the HoloLens side, one can use the
-open source package [dvrk-xr](https://github.com/jhu-dvrk/dvrk-xr).
+open source package [dvrk-xr](https://github.com/jhu-dvrk/dvrk-xr).  It can be used to receive and send data to any other SAW component (see https://github.com/jhu-cisst/cisst/wiki/cisst-libraries-and-SAW-components)
 
 Based on user requests, we could add:
   * TCP support
@@ -24,17 +24,18 @@ Based on user requests, we could add:
 
 ## Adding the component
 
-One can create and add the `mtsSocketStreamer` component manually in
-your `main` C function but we strongly recommend using the
+You can create and add the `mtsSocketStreamer` component manually in
+your `main` C/C++ code but we strongly recommend using the
 `cisstMultiTask` manager ability to load a configuration file to add
-and connect components.  The dVRK main programs provide this options.  See https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/master/applications/mainQtConsoleJSON.cpp.
+and connect components.  Most cisst/SAW (including dVRK) programs have
+already been updated with the code below so you likely don't need to
+add this and can skip to the next section.  See
+https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/master/applications/mainQtConsoleJSON.cpp.
 
 There is first a command line option to specify one or more configuration files for the component manager:
 ```cpp
     cmnCommandLineOptions options;
-    typedef std::list<std::string> managerConfigType;
-    managerConfigType managerConfig;
-
+    std::list<std::string> managerConfig;
     options.AddOptionMultipleValues("m", "component-manager",
                                     "JSON files to configure component manager",
                                     cmnCommandLineOptions::OPTIONAL_OPTION, &managerConfig);
@@ -42,24 +43,14 @@ There is first a command line option to specify one or more configuration files 
 
 Then one has to use the configuration files to configure the component manager:
 ```cpp
-    const managerConfigType::iterator endConfig = managerConfig.end();
-    for (managerConfigType::iterator iterConfig = managerConfig.begin();
-         iterConfig != endConfig;
-         ++iterConfig) {
-        if (!iterConfig->empty()) {
-            if (!cmnPath::Exists(*iterConfig)) {
-                CMN_LOG_INIT_ERROR << "File " << *iterConfig
-                                   << " not found!" << std::endl;
-            } else {
-                if (!componentManager->ConfigureJSON(*iterConfig)) {
-                    CMN_LOG_INIT_ERROR << "Configure: failed to configure component-manager for "
-                                       << *iterConfig << std::endl;
-                    return -1;
-                }
-            }
-        }
+    mtsManagerLocal * componentManager = mtsManagerLocal::GetInstance();
+    if (!componentManager->ConfigureJSON(managerConfig)) {
+        CMN_LOG_INIT_ERROR << "Configure: failed to configure component manager, check cisstLog for error messages" << std::endl;
+        return -1;
     }
 ```
+
+## Configuration file for the component manager
 
 The configuration files for the component manager will look like (more examples can be found at https://github.com/jhu-dvrk/sawIntuitiveResearchKit/tree/master/share/socket-streamer):
 ```json
@@ -118,27 +109,82 @@ The configuration files for the component manager will look like (more examples 
 
 ```
 
-## Component configuration file
+## Socket streamer configuration file
 
-Each component created need a configuration file that specifies with read command to use to retrieve the data as well as the data type.  For example:
+Each component created need a configuration file that specifies which read command to use to retrieve the data as well as the data type.  For example:
 ```json
 /* -*- Mode: Javascript; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 {
     "ip": "10.194.86.119",
     "port": "48054",
-    "data": [
+    "read-commands": [
         {
             "name": "measured_js",
             "type": "prmStateJoint"
         }
     ]
+    ,
+    "void-commands": ["hold", "free"]
+    ,
+    "write-commands": [
+        {
+            "name": "servo_jp",
+            "type": "prmPositionJointSet"
+        }
+    ]
+    ,
+    "write-events": ["operating_state"]
 }
 ```
 
+
 ## Testing the streamer
 
-To test the streamer, you can use the `nc` tool on Linux.   The main options are `l` to listen and `u` for UDP protocol.  Then you need to add the IP address and port.   With the example above, try:
+To test the read commands and events, you can use the `nc` tool on
+Linux.  The main options are `l` to listen and `u` for UDP protocol.
+Then you need to add the IP address and port.  With the example above,
+try:
 ```sh
 nc -lu 10.194.86.119 48054
 ```
-At that point you should see a continous stream for text in JSON format.
+At that point you should see a continous stream of text in JSON format.
+
+To test the void and write commands, you need to create your own code
+and send the command name and payload in JSON format.  For void
+commands, send an empty string (`""`).  You can find an example in
+Python in the sawIntuitiveResearchKit repository under
+`share/socket-streamer`:
+https://github.com/jhu-dvrk/sawIntuitiveResearchKit/blob/devel/share/socket-streamer/example.py
+
+## Using the socket streamer with Unity
+
+This is based on code that can be found in the `share` directory.
+This code was originally written by An Chi Chen and Muhammad Hadi when
+they were students at Johns Hopkins.  Their goal was to visualize and
+control a dVRK PSM from Unity.
+
+The main parts are setting up the socket in the ``start()``:
+```csharp
+    // udp using socket
+    data = new byte[1024];
+    IPEndPoint ip = new IPEndPoint(IPAddress.Any, 48051);    // ensure that this port is the same as the one youre sending data from
+    socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+    socket.Bind(ip);
+    IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+    remote = (EndPoint)(sender);
+```
+
+And then you can read from the socket using:
+```csharp
+    // read in message from dVRK
+    data = new byte[1024];
+    socket.ReceiveFrom(data, ref remote);
+    dVRK_msg = Encoding.UTF8.GetString(data);    // dVRK_msg will then contain the data
+```
+
+Finally an example of how you would send data:
+```csharp
+    // send json strings to dVRK
+    send_msg = Encoding.UTF8.GetBytes(pose_message);    // pose_message is string to send
+    socket.SendTo(send_msg, remote);
+```
