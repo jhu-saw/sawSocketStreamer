@@ -20,6 +20,11 @@ Based on user requests, we could add:
 # Dependencies
  * cisst libraries: https://github.com/jhu-cisst/cisst
 
+# Repository layout
+
+ * `core`: ROS-independent cisst/SAW component and library
+ * `ros`: ROS bridge package, reserved for the cisst_crtk_ros based bridge
+
 # Using the component
 
 ## Adding the component

@@ -1,0 +1,4 @@
+{
+  "name": "saw_socket_streamer_ros",
+  "dependencies": ["cisst_ros_crtk", "sawSocketStreamerCore"]
+}
