@@ -70,11 +70,6 @@ if (cisst_FOUND_AS_REQUIRED)
       RENAME demo_js)
 
     install (
-      PROGRAMS scripts/measured_js_servo_jp.py
-      DESTINATION lib/${PROJECT_NAME}
-      RENAME measured_js_servo_jp)
-
-    install (
       DIRECTORY launch share
       DESTINATION share/${PROJECT_NAME})
 
