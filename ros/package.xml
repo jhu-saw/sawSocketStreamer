@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>saw_socket_streamer_ros</name>
+  <version>1.2.0</version>
+  <description>ROS2 bridge for sawSocketStreamer</description>
+
+  <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>
+  <license>cisst</license>
+  <url>https://github.com/jhu-saw/sawSocketStreamer</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>saw_socket_streamer</depend>
+  <depend>cisst_ros_crtk</depend>
+  <depend>cisst_ros_bridge</depend>
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
+  <depend>rosidl_runtime_py</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_msgs</depend>
+  <depend>cisst_msgs</depend>
+  <depend>crtk_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

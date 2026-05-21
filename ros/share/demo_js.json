@@ -1,0 +1,10 @@
+{
+    "ip": "127.0.0.1",
+    "port": "48054",
+    "read-commands": [
+        {
+            "name": "measured_js",
+            "type": "prmStateJoint"
+        }
+    ]
+}
