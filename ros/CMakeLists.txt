@@ -30,53 +30,47 @@ set (REQUIRED_CISST_LIBRARIES
      cisstMultiTask
      cisstParameterTypes)
 
-find_package (cisst 1.2.1 REQUIRED ${REQUIRED_CISST_LIBRARIES})
+find_package (cisst 1.2.1 REQUIRED COMPONENTS ${REQUIRED_CISST_LIBRARIES})
 
-if (cisst_FOUND_AS_REQUIRED)
+cisst_set_output_path ()
 
-  include (${CISST_USE_FILE})
-  cisst_set_output_path ()
+find_package (sawSocketStreamer 1.2.0)
 
-  find_package (sawSocketStreamer 1.2.0)
+if (sawSocketStreamer_FOUND)
 
-  if (sawSocketStreamer_FOUND)
+  include_directories (${sawSocketStreamer_INCLUDE_DIR})
+  link_directories (${sawSocketStreamer_LIBRARY_DIR})
 
-    include_directories (${sawSocketStreamer_INCLUDE_DIR})
-    link_directories (${sawSocketStreamer_LIBRARY_DIR})
+  add_executable (
+    socket_streamer_ros_bridge
+    src/socket_streamer_ros_bridge.cpp)
 
-    add_executable (
-      socket_streamer_ros_bridge
-      src/socket_streamer_ros_bridge.cpp)
+  target_link_libraries (
+    socket_streamer_ros_bridge
+    ${sawSocketStreamer_LIBRARIES})
 
-    target_link_libraries (
-      socket_streamer_ros_bridge
-      ${sawSocketStreamer_LIBRARIES})
+  target_link_libraries (socket_streamer_ros_bridge ${cisst_LIBRARIES})
 
-    cisst_target_link_libraries (
-      socket_streamer_ros_bridge
-      ${REQUIRED_CISST_LIBRARIES})
+  ament_target_dependencies (
+    socket_streamer_ros_bridge
+    ${ROS2_depends})
 
-    ament_target_dependencies (
-      socket_streamer_ros_bridge
-      ${ROS2_depends})
+  install (
+    TARGETS socket_streamer_ros_bridge
+    RUNTIME DESTINATION lib/${PROJECT_NAME})
 
-    install (
-      TARGETS socket_streamer_ros_bridge
-      RUNTIME DESTINATION lib/${PROJECT_NAME})
+  install (
+    PROGRAMS scripts/demo_js.py
+    DESTINATION lib/${PROJECT_NAME}
+    RENAME demo_js)
 
-    install (
-      PROGRAMS scripts/demo_js.py
-      DESTINATION lib/${PROJECT_NAME}
-      RENAME demo_js)
+  install (
+    DIRECTORY launch share
+    DESTINATION share/${PROJECT_NAME})
 
-    install (
-      DIRECTORY launch share
-      DESTINATION share/${PROJECT_NAME})
+else (sawSocketStreamer_FOUND)
+  message ("Information: code in ${CMAKE_CURRENT_SOURCE_DIR} will not be compiled, it requires sawSocketStreamer")
+endif (sawSocketStreamer_FOUND)
 
-  else (sawSocketStreamer_FOUND)
-    message ("Information: code in ${CMAKE_CURRENT_SOURCE_DIR} will not be compiled, it requires sawSocketStreamer")
-  endif (sawSocketStreamer_FOUND)
-
-endif (cisst_FOUND_AS_REQUIRED)
 
 ament_package ()
