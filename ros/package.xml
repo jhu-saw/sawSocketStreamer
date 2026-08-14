@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>saw_socket_streamer_ros</name>
-  <version>1.2.0</version>
+  <version>1.3.0</version>
   <description>ROS2 bridge for sawSocketStreamer</description>
 
   <maintainer email="anton.deguet@jhu.edu">Anton Deguet</maintainer>

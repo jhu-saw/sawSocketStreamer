@@ -1,6 +1,14 @@
 Change log
 ==========
 
+1.3.0 (TBD)
+===========
+
+* New features:
+  * Added CRTK-compatible ROS bridges, including ROS 2 support and a standalone hard-coded bridge example.
+* Build:
+  * Updated CMake configuration for the current cisst release.
+
 
 1.2.0 (2024-01-02)
 ==================

@@ -10,7 +10,7 @@
 # --- end cisst license ---
 
 cmake_minimum_required (VERSION 3.16)
-project (sawSocketStreamerCore VERSION 1.2.0)
+project (sawSocketStreamerCore VERSION 1.3.0)
 
 find_package (cisst REQUIRED)
 cisst_cpack_settings (
