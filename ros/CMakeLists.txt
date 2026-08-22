@@ -34,7 +34,7 @@ find_package (cisst 1.5 REQUIRED COMPONENTS ${REQUIRED_CISST_LIBRARIES})
 
 cisst_set_output_path ()
 
-find_package (sawSocketStreamer 1.2.0)
+find_package (sawSocketStreamer 1.3.0)
 
 if (sawSocketStreamer_FOUND)
 
