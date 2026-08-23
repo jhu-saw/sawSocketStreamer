@@ -1,8 +1,8 @@
 Change log
 ==========
 
-1.3.0 (TBD)
-===========
+1.3.0 (2026-08-22)
+==================
 
 * New features:
   * Added CRTK-compatible ROS bridges, including ROS 2 support and a standalone hard-coded bridge example.
