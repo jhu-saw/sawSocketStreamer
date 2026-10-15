@@ -34,24 +34,24 @@ class CISST_EXPORT mtsSocketStreamer: public mtsTaskPeriodic
     CMN_DECLARE_SERVICES(CMN_DYNAMIC_CREATION_ONEARG, CMN_LOG_ALLOW_DEFAULT);
 
  protected:
-    typedef struct {
+    struct FunctionReadStruct {
         mtsFunctionRead Function;
         mtsGenericObject * Data = nullptr;
-    } FunctionReadStruct;
-    typedef struct {
+    };
+    struct FunctionWriteStruct {
         mtsFunctionWrite Function;
         mtsGenericObject * Data = nullptr;
-    } FunctionWriteStruct;
-    typedef struct {
+    };
+    struct EventVoidStruct {
         void Callback(void);
         std::string Name;
         mtsSocketStreamer * Streamer = nullptr;
-    } EventVoidStruct;
-    typedef struct {
+    };
+    struct EventWriteStruct {
         void Callback(const mtsGenericObject & payload);
         std::string Name;
         mtsSocketStreamer * Streamer = nullptr;
-    } EventWriteStruct;
+    };
 
  public:
     /*! Constructor
